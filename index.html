@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tratador ERP FBF</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #65717e;
+      --line: #d9dee5;
+      --primary: #1769aa;
+      --primary-dark: #0f4f82;
+      --danger: #b42318;
+      --success: #146c43;
+      --warning: #8a5a00;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    main {
+      width: min(900px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0;
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
+    }
+
+    .actions {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .file-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+
+    button,
+    .file-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 18px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button:hover,
+    .file-label:hover {
+      background: var(--primary-dark);
+    }
+
+    button:disabled {
+      background: #9aa6b2;
+      cursor: not-allowed;
+    }
+
+    .secondary {
+      background: #263442;
+    }
+
+    .secondary:hover {
+      background: #17202a;
+    }
+
+    .file-name {
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .status-box {
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+    }
+
+    .message {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 6px;
+      background: #eef3f8;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .message.success {
+      background: #e8f5ee;
+      color: var(--success);
+    }
+
+    .message.error {
+      background: #fdebea;
+      color: var(--danger);
+    }
+
+    .message.warning {
+      background: #fff6df;
+      color: var(--warning);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      min-height: 76px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfd;
+    }
+
+    summary {
+      padding: 14px 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .technical {
+      padding: 0 16px 16px;
+      color: #2d3a45;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      max-height: 340px;
+      overflow: auto;
+    }
+
+    .download-row {
+      margin-top: 18px;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        width: min(100% - 20px, 900px);
+        padding: 20px 0;
+      }
+
+      h1 {
+        font-size: 26px;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      button,
+      .file-label {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tratador ERP FBF</h1>
+
+    <section class="panel" aria-label="Tratador de relatório ERP">
+      <div class="actions">
+        <div class="file-row">
+          <label class="file-label" for="excelFile">Selecionar arquivo Excel</label>
+          <input id="excelFile" type="file" accept=".xlsx,.xls">
+          <span class="file-name" id="fileName">Nenhum arquivo carregado</span>
+        </div>
+
+        <button id="processButton" type="button" disabled>Processar Arquivo</button>
+      </div>
+
+      <div class="status-box">
+        <p id="message" class="message">Aguardando seleção do arquivo.</p>
+
+        <div class="metrics" aria-label="Relatório de processamento">
+          <div class="metric"><span>Arquivo carregado</span><strong id="metricFile">-</strong></div>
+          <div class="metric"><span>Linhas lidas</span><strong id="metricRead">0</strong></div>
+          <div class="metric"><span>Linhas válidas</span><strong id="metricValid">0</strong></div>
+          <div class="metric"><span>Linhas removidas</span><strong id="metricRemoved">0</strong></div>
+          <div class="metric"><span>Total Venda</span><strong id="metricSales">R$ 0,00</strong></div>
+          <div class="metric"><span>Total Custo</span><strong id="metricCost">R$ 0,00</strong></div>
+          <div class="metric"><span>Total Lucro</span><strong id="metricProfit">R$ 0,00</strong></div>
+          <div class="metric"><span>Inconsistências</span><strong id="metricIssues">0</strong></div>
+          <div class="metric"><span>Duplicidades</span><strong id="metricDuplicates">0</strong></div>
+          <div class="metric"><span>Validações executadas</span><strong id="metricValidations">0</strong></div>
+        </div>
+
+        <details>
+          <summary>Detalhes Técnicos</summary>
+          <pre class="technical" id="technicalLog">Nenhum processamento executado.</pre>
+        </details>
+
+        <div class="download-row">
+          <button class="secondary" id="downloadButton" type="button" disabled>Baixar Arquivo Tratado</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var APP_VERSION = "2026-05-12-erp-fbf-v3";
+
+      var REQUIRED_HEADERS = [
+        "Código",
+        "Produto",
+        "Unidade",
+        "Quantidade",
+        "Peso Líqu.",
+        "Venda R$",
+        "Custo R$",
+        "Lucro R$",
+        "Margem %"
+      ];
+
+      var FIELD_CONFIG = {
+        codigo: { label: "Código", aliases: ["codigo", "cod", "produto"] },
+        produto: { label: "Produto", aliases: ["descricao de produto", "descricao produto", "produto", "descrição de produto", "descrição produto"] },
+        unidade: { label: "Unidade", aliases: ["unidade", "unid", "und"] },
+        quantidade: { label: "Quantidade", aliases: ["quantidade", "qtd", "qtde"] },
+        peso: { label: "Peso Líqu.", aliases: ["peso liqu", "peso liquido", "peso líq", "peso líqu", "peso líquido"] },
+        venda: { label: "Venda R$", aliases: ["venda", "venda r", "valor venda", "vr venda"] },
+        custo: { label: "Custo R$", aliases: ["custo", "custo r", "valor custo", "vr custo"] },
+        lucro: { label: "Lucro R$", aliases: ["lucro", "lucro r"] },
+        margem: { label: "Margem %", aliases: ["margem", "margem %"] }
+      };
+
+      var PRIMARY_FALLBACK = {
+        codigo: 0,
+        produto: 2,
+        unidade: 12,
+        quantidade: 13,
+        peso: 15,
+        venda: 18,
+        custo: 20,
+        lucro: 22,
+        margem: 24
+      };
+
+      var REAL_DATA_FALLBACK = {
+        codigo: 0,
+        produto: 2,
+        unidade: 12,
+        quantidade: 13,
+        peso: 15,
+        venda: 17,
+        custo: 19,
+        lucro: 21,
+        margem: 23
+      };
+
+      var SECONDARY_FALLBACK = {
+        codigo: 0,
+        produto: 2,
+        unidade: 12,
+        quantidade: 13,
+        peso: 16,
+        venda: 19,
+        custo: 21,
+        lucro: 23,
+        margem: 25
+      };
+
+      var selectedFile = null;
+      var processedRows = [];
+      var lastExportName = "";
+
+      var fileInput = document.getElementById("excelFile");
+      var fileName = document.getElementById("fileName");
+      var processButton = document.getElementById("processButton");
+      var downloadButton = document.getElementById("downloadButton");
+      var message = document.getElementById("message");
+      var technicalLog = document.getElementById("technicalLog");
+
+      var metrics = {
+        file: document.getElementById("metricFile"),
+        read: document.getElementById("metricRead"),
+        valid: document.getElementById("metricValid"),
+        removed: document.getElementById("metricRemoved"),
+        sales: document.getElementById("metricSales"),
+        cost: document.getElementById("metricCost"),
+        profit: document.getElementById("metricProfit"),
+        issues: document.getElementById("metricIssues"),
+        duplicates: document.getElementById("metricDuplicates"),
+        validations: document.getElementById("metricValidations")
+      };
+
+      fileInput.addEventListener("change", function (event) {
+        selectedFile = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        processedRows = [];
+        downloadButton.disabled = true;
+
+        if (!selectedFile) {
+          fileName.textContent = "Nenhum arquivo carregado";
+          processButton.disabled = true;
+          setMessage("Aguardando seleção do arquivo.", "");
+          resetMetrics();
+          return;
+        }
+
+        fileName.textContent = selectedFile.name;
+        processButton.disabled = false;
+        metrics.file.textContent = selectedFile.name;
+        setMessage("Arquivo carregado. Pronto para processar.", "");
+        technicalLog.textContent = "Arquivo selecionado: " + selectedFile.name;
+      });
+
+      processButton.addEventListener("click", function () {
+        if (!selectedFile) {
+          setMessage("Selecione um arquivo Excel antes de processar.", "error");
+          return;
+        }
+
+        if (typeof XLSX === "undefined") {
+          setMessage("Erro: biblioteca SheetJS não foi carregada. Verifique a conexão no primeiro carregamento da página.", "error");
+          return;
+        }
+
+        processButton.disabled = true;
+        downloadButton.disabled = true;
+        setMessage("Processando arquivo localmente...", "");
+
+        setTimeout(function () {
+          readWorkbook(selectedFile)
+            .then(function (workbook) {
+              var result = processWorkbook(workbook);
+              renderResult(result);
+            })
+            .catch(function (error) {
+              processedRows = [];
+              setMessage("Erro ao processar arquivo: " + error.message, "error");
+              technicalLog.textContent = "Erro encontrado:\n" + (error.stack || error.message);
+              downloadButton.disabled = true;
+            })
+            .finally(function () {
+              processButton.disabled = false;
+            });
+        }, 20);
+      });
+
+      downloadButton.addEventListener("click", function () {
+        if (!processedRows.length) {
+          setMessage("Não há arquivo tratado disponível para download.", "error");
+          return;
+        }
+
+        var worksheet = XLSX.utils.json_to_sheet(processedRows, { header: REQUIRED_HEADERS });
+        var workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "DEMONSTRATIVO_DE_MARGEM");
+        XLSX.writeFile(workbook, lastExportName || makeExportName());
+      });
+
+      function readWorkbook(file) {
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+
+          reader.onload = function (event) {
+            try {
+              var data = new Uint8Array(event.target.result);
+              var workbook = XLSX.read(data, { type: "array", cellDates: false });
+              resolve(workbook);
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          reader.onerror = function () {
+            reject(new Error("Falha ao ler o arquivo."));
+          };
+
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
+      function processWorkbook(workbook) {
+        var firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          throw new Error("A planilha não possui abas.");
+        }
+
+        var sheet = workbook.Sheets[firstSheetName];
+        var rows = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          blankrows: false,
+          raw: false
+        });
+
+        var logs = {
+          sheetName: firstSheetName,
+          detectedColumns: {},
+          startRow: null,
+          discardedRows: [],
+          inconsistencies: [],
+          duplicates: [],
+          discardedCount: 0,
+          inconsistencyCount: 0,
+          duplicateCount: 0,
+          discardReasons: {},
+          errors: []
+        };
+
+        var headerInfo = findHeaderRow(rows);
+        var mapping = buildColumnMapping(rows, headerInfo);
+        var startIndex = headerInfo.index >= 0 ? headerInfo.index + 1 : detectFirstDataRow(rows, mapping);
+        logs.startRow = startIndex >= 0 ? startIndex + 1 : "não encontrada";
+        logs.detectedColumns = describeMapping(mapping);
+
+        if (startIndex < 0) {
+          throw new Error("Não foi possível localizar a linha inicial dos dados reais.");
+        }
+
+        var cleanRows = [];
+        var totalSales = 0;
+        var totalCost = 0;
+        var totalProfit = 0;
+        var duplicateMap = new Map();
+        var maxRows = rows.length;
+
+        for (var index = startIndex; index < maxRows; index += 1) {
+          var row = rows[index] || [];
+          var discardReason = getDiscardReason(row, mapping);
+
+          if (discardReason) {
+            logs.discardedCount += 1;
+            logs.discardReasons[discardReason] = (logs.discardReasons[discardReason] || 0) + 1;
+            if (shouldLogItem(logs.discardedRows)) {
+              logs.discardedRows.push({ linha: index + 1, motivo: discardReason, amostra: compactRow(row) });
+            }
+            continue;
+          }
+
+          var item = extractCleanRow(row, mapping);
+          var rowIssues = validateRow(item, index + 1);
+
+          if (rowIssues.length) {
+            logs.inconsistencyCount += 1;
+            if (shouldLogItem(logs.inconsistencies)) {
+              logs.inconsistencies.push({ linha: index + 1, problemas: rowIssues, registro: item });
+            }
+            continue;
+          }
+
+          cleanRows.push(item);
+          totalSales += item["Venda R$"];
+          totalCost += item["Custo R$"];
+          totalProfit += item["Lucro R$"];
+
+          var duplicateKey = [
+            normalizeText(item["Produto"]).toUpperCase(),
+            roundNumber(item["Venda R$"], 2),
+            roundNumber(item["Quantidade"], 6)
+          ].join("|");
+
+          if (duplicateMap.has(duplicateKey)) {
+            var firstLine = duplicateMap.get(duplicateKey);
+            logs.duplicateCount += 1;
+            if (shouldLogItem(logs.duplicates)) {
+              logs.duplicates.push({
+                primeiraLinha: firstLine,
+                linha: index + 1,
+                produto: item["Produto"],
+                venda: item["Venda R$"],
+                quantidade: item["Quantidade"]
+              });
+            }
+          } else {
+            duplicateMap.set(duplicateKey, index + 1);
+          }
+        }
+
+        cleanRows.sort(compareByCode);
+
+        var validationSummary = validateDataset(cleanRows, totalSales, logs);
+        if (!validationSummary.ok) {
+          return {
+            ok: false,
+            rowsRead: rows.length,
+            validRows: cleanRows.length,
+            removedRows: logs.discardedCount + logs.inconsistencyCount,
+            totals: { sales: totalSales, cost: totalCost, profit: totalProfit },
+            validations: validationSummary,
+            logs: logs,
+            outputRows: []
+          };
+        }
+
+        return {
+          ok: true,
+          rowsRead: rows.length,
+          validRows: cleanRows.length,
+          removedRows: logs.discardedCount + logs.inconsistencyCount,
+          totals: { sales: totalSales, cost: totalCost, profit: totalProfit },
+          validations: validationSummary,
+          logs: logs,
+          outputRows: cleanRows
+        };
+      }
+
+      function findHeaderRow(rows) {
+        var best = { index: -1, score: 0 };
+
+        for (var rowIndex = 0; rowIndex < Math.min(rows.length, 80); rowIndex += 1) {
+          var row = rows[rowIndex] || [];
+          var normalizedCells = row.map(function (cell) {
+            return normalizeHeader(cell);
+          });
+
+          var score = 0;
+          if (containsAny(normalizedCells, FIELD_CONFIG.produto.aliases)) score += 1;
+          if (containsAny(normalizedCells, FIELD_CONFIG.unidade.aliases)) score += 1;
+          if (containsAny(normalizedCells, FIELD_CONFIG.quantidade.aliases)) score += 1;
+          if (containsAny(normalizedCells, FIELD_CONFIG.venda.aliases)) score += 1;
+          if (containsAny(normalizedCells, FIELD_CONFIG.custo.aliases)) score += 1;
+
+          if (score > best.score) {
+            best = { index: rowIndex, score: score };
+          }
+
+          if (score >= 5) {
+            return best;
+          }
+        }
+
+        return best.score >= 4 ? best : { index: -1, score: 0 };
+      }
+
+      function buildColumnMapping(rows, headerInfo) {
+        var mapping = Object.assign({}, PRIMARY_FALLBACK);
+        var usedFallback = Object.keys(mapping).reduce(function (acc, key) {
+          acc[key] = "fallback principal";
+          return acc;
+        }, {});
+
+        if (headerInfo.index >= 0) {
+          var headerRow = rows[headerInfo.index] || [];
+          Object.keys(FIELD_CONFIG).forEach(function (field) {
+            var found = findHeaderColumn(headerRow, FIELD_CONFIG[field].aliases);
+            if (found >= 0) {
+              mapping[field] = found;
+              usedFallback[field] = "cabeçalho";
+            }
+          });
+        }
+
+        var sampleStart = headerInfo.index >= 0 ? headerInfo.index + 1 : 0;
+        if (looksLikeMergedProductHeader(rows, sampleStart, mapping)) {
+          mapping.codigo = PRIMARY_FALLBACK.codigo;
+          mapping.produto = PRIMARY_FALLBACK.produto;
+          usedFallback.codigo = "layout ERP mesclado";
+          usedFallback.produto = "layout ERP mesclado";
+        } else {
+          mapping.codigo = hasUsableColumn(rows, mapping.codigo) ? mapping.codigo : PRIMARY_FALLBACK.codigo;
+        }
+
+        if (!hasUsableColumn(rows, mapping.venda) && hasUsableColumn(rows, SECONDARY_FALLBACK.venda)) {
+          Object.keys(SECONDARY_FALLBACK).forEach(function (field) {
+            if (usedFallback[field] !== "cabeçalho") {
+              mapping[field] = SECONDARY_FALLBACK[field];
+              usedFallback[field] = "fallback secundário";
+            }
+          });
+        }
+
+        refineNumericColumns(rows, sampleStart, mapping, usedFallback);
+        chooseBestColumnSet(rows, sampleStart, mapping, usedFallback);
+
+        mapping._source = usedFallback;
+        return mapping;
+      }
+
+      function detectFirstDataRow(rows, mapping) {
+        for (var index = 0; index < rows.length; index += 1) {
+          var row = rows[index] || [];
+          if (rowHasRealData(row, mapping)) {
+            return index;
+          }
+        }
+
+        return -1;
+      }
+
+      function looksLikeMergedProductHeader(rows, startIndex, mapping) {
+        for (var index = startIndex; index < Math.min(rows.length, startIndex + 40); index += 1) {
+          var row = rows[index] || [];
+          var codeAtA = parseBrazilianNumber(row[PRIMARY_FALLBACK.codigo]);
+          var textAtC = normalizeText(row[PRIMARY_FALLBACK.produto]);
+          var saleAtPrimary = parseBrazilianNumber(row[PRIMARY_FALLBACK.venda]);
+          var saleNearPrimary = isFiniteNumber(saleAtPrimary) ? saleAtPrimary : parseBrazilianNumber(row[PRIMARY_FALLBACK.venda - 1]);
+
+          if (isFiniteNumber(codeAtA) && textAtC.length >= 3 && isFiniteNumber(saleNearPrimary)) {
+            return mapping.produto === PRIMARY_FALLBACK.codigo || mapping.produto === 0;
+          }
+        }
+
+        return false;
+      }
+
+      function refineNumericColumns(rows, startIndex, mapping, usedFallback) {
+        ["quantidade", "peso", "venda", "custo", "lucro", "margem"].forEach(function (field) {
+          var current = mapping[field];
+          var best = current;
+          var bestHits = countNumericHits(rows, startIndex, current);
+          var candidates = [current - 1, current + 1, current - 2, current + 2];
+
+          candidates.forEach(function (candidate) {
+            if (candidate < 0) {
+              return;
+            }
+
+            var hits = countNumericHits(rows, startIndex, candidate);
+            if (hits > bestHits + 3) {
+              best = candidate;
+              bestHits = hits;
+            }
+          });
+
+          if (best !== current) {
+            mapping[field] = best;
+            usedFallback[field] = (usedFallback[field] || "detectado") + ", ajustado por dados";
+          }
+        });
+      }
+
+      function chooseBestColumnSet(rows, startIndex, mapping, usedFallback) {
+        var candidates = [
+          {
+            source: "mapeamento detectado",
+            columns: cloneMapping(mapping)
+          },
+          {
+            source: "dados reais do exemplo",
+            columns: cloneMapping(REAL_DATA_FALLBACK)
+          },
+          {
+            source: "referência exemplo",
+            columns: cloneMapping(PRIMARY_FALLBACK)
+          },
+          {
+            source: "fallback informado",
+            columns: cloneMapping(SECONDARY_FALLBACK)
+          },
+          {
+            source: "cabeçalho deslocado à esquerda",
+            columns: Object.assign(cloneMapping(mapping), {
+              peso: Math.max(0, mapping.peso - 1),
+              venda: Math.max(0, mapping.venda - 1),
+              custo: Math.max(0, mapping.custo - 1),
+              lucro: Math.max(0, mapping.lucro - 1),
+              margem: Math.max(0, mapping.margem - 1)
+            })
+          }
+        ];
+
+        var best = candidates[0];
+        var bestScore = scoreColumnSet(rows, startIndex, candidates[0].columns);
+
+        for (var i = 1; i < candidates.length; i += 1) {
+          var score = scoreColumnSet(rows, startIndex, candidates[i].columns);
+          if (score.valid > bestScore.valid || (score.valid === bestScore.valid && score.errors < bestScore.errors)) {
+            best = candidates[i];
+            bestScore = score;
+          }
+        }
+
+        Object.keys(FIELD_CONFIG).forEach(function (field) {
+          if (mapping[field] !== best.columns[field]) {
+            mapping[field] = best.columns[field];
+            usedFallback[field] = best.source + ", escolhido por consistência";
+          }
+        });
+      }
+
+      function scoreColumnSet(rows, startIndex, columns) {
+        var valid = 0;
+        var errors = 0;
+        var limit = Math.min(rows.length, Math.max(startIndex, 0) + 120);
+
+        for (var index = Math.max(startIndex, 0); index < limit; index += 1) {
+          var row = rows[index] || [];
+          var product = normalizeText(row[columns.produto]);
+          var quantity = parseBrazilianNumber(row[columns.quantidade]);
+          var sale = parseBrazilianNumber(row[columns.venda]);
+          var cost = parseBrazilianNumber(row[columns.custo]);
+          var profit = parseBrazilianNumber(row[columns.lucro]);
+          var margin = parseBrazilianNumber(row[columns.margem]);
+
+          if (product.length < 3 || !isFiniteNumber(quantity) || !isFiniteNumber(sale) || !isFiniteNumber(cost) || !isFiniteNumber(profit)) {
+            continue;
+          }
+
+          var profitOk = Math.abs((sale - cost) - profit) <= 0.05;
+          var marginOk = !isFiniteNumber(margin) || sale === 0 || Math.abs((profit / sale * 100) - margin) <= 0.5;
+
+          if (profitOk && marginOk) {
+            valid += 1;
+          } else {
+            errors += 1;
+          }
+        }
+
+        return { valid: valid, errors: errors };
+      }
+
+      function cloneMapping(source) {
+        return {
+          codigo: source.codigo,
+          produto: source.produto,
+          unidade: source.unidade,
+          quantidade: source.quantidade,
+          peso: source.peso,
+          venda: source.venda,
+          custo: source.custo,
+          lucro: source.lucro,
+          margem: source.margem
+        };
+      }
+
+      function countNumericHits(rows, startIndex, col) {
+        var hits = 0;
+        var limit = Math.min(rows.length, startIndex + 80);
+
+        for (var index = Math.max(startIndex, 0); index < limit; index += 1) {
+          var value = parseBrazilianNumber((rows[index] || [])[col]);
+          if (isFiniteNumber(value)) {
+            hits += 1;
+          }
+        }
+
+        return hits;
+      }
+
+      function getDiscardReason(row, mapping) {
+        if (!row || row.length === 0 || row.every(isBlank)) {
+          return "linha vazia";
+        }
+
+        var rowText = normalizeHeader(row.join(" "));
+
+        if (rowText.replace(/[-_=.\s]/g, "") === "") {
+          return "linha separadora";
+        }
+
+        var rowMapping = resolveRowMapping(row, mapping);
+        var product = normalizeText(row[rowMapping.produto]);
+        var sale = parseBrazilianNumber(row[rowMapping.venda]);
+        var quantity = parseBrazilianNumber(row[rowMapping.quantidade]);
+        var looksLikeProductLine = product.length >= 3 && isFiniteNumber(sale) && isFiniteNumber(quantity);
+
+        if (isRepeatedHeader(row)) {
+          return "cabeçalho repetido";
+        }
+
+        if (!looksLikeProductLine) {
+          var junkWords = [
+            "total",
+            "total geral",
+            "subtotal",
+            "cliente",
+            "filial",
+            "centro de custo",
+            "demonstrativo",
+            "margem",
+            "pagina",
+            "página"
+          ];
+
+          for (var i = 0; i < junkWords.length; i += 1) {
+            if (rowText.indexOf(normalizeHeader(junkWords[i])) >= 0) {
+              return "linha lixo: " + junkWords[i];
+            }
+          }
+        }
+
+        if (!product) {
+          return "sem produto";
+        }
+
+        if (!isFiniteNumber(sale)) {
+          return "sem venda";
+        }
+
+        if (!isFiniteNumber(quantity)) {
+          return "quantidade inválida";
+        }
+
+        return "";
+      }
+
+      function rowHasRealData(row, mapping) {
+        if (getDiscardReason(row, mapping)) {
+          return false;
+        }
+
+        var rowMapping = resolveRowMapping(row, mapping);
+        var product = normalizeText(row[rowMapping.produto]);
+        var unit = normalizeText(row[rowMapping.unidade]);
+        var quantity = parseBrazilianNumber(row[rowMapping.quantidade]);
+        var sale = parseBrazilianNumber(row[rowMapping.venda]);
+        var cost = parseBrazilianNumber(row[rowMapping.custo]);
+
+        return product.length >= 3 &&
+          unit.length > 0 &&
+          isFiniteNumber(quantity) &&
+          isFiniteNumber(sale) &&
+          isFiniteNumber(cost);
+      }
+
+      function extractCleanRow(row, mapping) {
+        var rowMapping = resolveRowMapping(row, mapping);
+        return {
+          "Código": parseOptionalCode(row[rowMapping.codigo]),
+          "Produto": normalizeText(row[rowMapping.produto]),
+          "Unidade": normalizeText(row[rowMapping.unidade]),
+          "Quantidade": parseBrazilianNumber(row[rowMapping.quantidade]),
+          "Peso Líqu.": parseBrazilianNumber(row[rowMapping.peso]),
+          "Venda R$": parseBrazilianNumber(row[rowMapping.venda]),
+          "Custo R$": parseBrazilianNumber(row[rowMapping.custo]),
+          "Lucro R$": parseBrazilianNumber(row[rowMapping.lucro]),
+          "Margem %": parseBrazilianNumber(row[rowMapping.margem])
+        };
+      }
+
+      function resolveRowMapping(row, mapping) {
+        var candidates = [
+          cloneMapping(mapping),
+          cloneMapping(REAL_DATA_FALLBACK),
+          cloneMapping(PRIMARY_FALLBACK),
+          cloneMapping(SECONDARY_FALLBACK),
+          Object.assign(cloneMapping(mapping), {
+            peso: Math.max(0, mapping.peso - 1),
+            venda: Math.max(0, mapping.venda - 1),
+            custo: Math.max(0, mapping.custo - 1),
+            lucro: Math.max(0, mapping.lucro - 1),
+            margem: Math.max(0, mapping.margem - 1)
+          })
+        ];
+
+        var best = candidates[0];
+        var bestScore = -1;
+
+        for (var i = 0; i < candidates.length; i += 1) {
+          var score = scoreRowMapping(row, candidates[i]);
+          if (score > bestScore) {
+            best = candidates[i];
+            bestScore = score;
+          }
+        }
+
+        return best;
+      }
+
+      function scoreRowMapping(row, columns) {
+        var product = normalizeText(row[columns.produto]);
+        var unit = normalizeText(row[columns.unidade]);
+        var quantity = parseBrazilianNumber(row[columns.quantidade]);
+        var sale = parseBrazilianNumber(row[columns.venda]);
+        var cost = parseBrazilianNumber(row[columns.custo]);
+        var profit = parseBrazilianNumber(row[columns.lucro]);
+        var margin = parseBrazilianNumber(row[columns.margem]);
+        var score = 0;
+
+        if (product.length >= 3) score += 4;
+        if (unit.length > 0) score += 1;
+        if (isFiniteNumber(quantity)) score += 2;
+        if (isFiniteNumber(sale)) score += 3;
+        if (isFiniteNumber(cost)) score += 2;
+        if (isFiniteNumber(profit)) score += 2;
+        if (isFiniteNumber(margin)) score += 1;
+        if (isFiniteNumber(sale) && isFiniteNumber(cost) && isFiniteNumber(profit) && Math.abs((sale - cost) - profit) <= 0.05) score += 8;
+        if (isFiniteNumber(sale) && sale !== 0 && isFiniteNumber(profit) && isFiniteNumber(margin) && Math.abs((profit / sale * 100) - margin) <= 0.5) score += 4;
+
+        return score;
+      }
+
+      function validateRow(item, rowNumber) {
+        var issues = [];
+
+        if (!item["Produto"] || item["Produto"].length < 3) {
+          issues.push("produto inválido");
+        }
+
+        if (!isFiniteNumber(item["Quantidade"]) || item["Quantidade"] < 0) {
+          issues.push("quantidade negativa ou inválida");
+        }
+
+        if (!isFiniteNumber(item["Venda R$"])) {
+          issues.push("venda inválida");
+        }
+
+        if (!isFiniteNumber(item["Custo R$"])) {
+          issues.push("custo inválido");
+        }
+
+        if (!isFiniteNumber(item["Lucro R$"])) {
+          issues.push("lucro inválido");
+        }
+
+        if (isFiniteNumber(item["Venda R$"]) && isFiniteNumber(item["Custo R$"]) && isFiniteNumber(item["Lucro R$"])) {
+          var expectedProfit = item["Venda R$"] - item["Custo R$"];
+          if (Math.abs(expectedProfit - item["Lucro R$"]) > 0.05) {
+            issues.push("lucro divergente na linha " + rowNumber + ": esperado " + roundNumber(expectedProfit, 2));
+          }
+        }
+
+        if (isFiniteNumber(item["Venda R$"]) && item["Venda R$"] !== 0 && isFiniteNumber(item["Lucro R$"]) && isFiniteNumber(item["Margem %"])) {
+          var expectedMargin = (item["Lucro R$"] / item["Venda R$"]) * 100;
+          if (Math.abs(expectedMargin - item["Margem %"]) > 0.5) {
+            issues.push("margem divergente na linha " + rowNumber + ": esperada " + roundNumber(expectedMargin, 2) + "%");
+          }
+        }
+
+        return issues;
+      }
+
+      function validateDataset(rows, totalSales, logs) {
+        var validations = [];
+        var errors = [];
+
+        validations.push("Estrutura mínima");
+        if (rows.length < 1) {
+          errors.push("Nenhuma linha válida encontrada.");
+        }
+
+        var hasAllHeaders = REQUIRED_HEADERS.every(function (header) {
+          return Object.prototype.hasOwnProperty.call(rows[0] || {}, header);
+        });
+        if (!hasAllHeaders) {
+          errors.push("Colunas obrigatórias ausentes no arquivo final.");
+        }
+
+        validations.push("Venda total maior que zero");
+        if (!(totalSales > 0)) {
+          errors.push("Total de Venda R$ precisa ser maior que zero.");
+        }
+
+        validations.push("Conferência matemática de lucro");
+        validations.push("Conferência de margem percentual");
+        validations.push("Produtos válidos");
+        validations.push("Quantidade válida");
+        validations.push("Duplicidade absurda");
+
+        if (logs.inconsistencyCount > 0) {
+          errors.push("Foram encontradas inconsistências matemáticas ou cadastrais. Veja Detalhes Técnicos.");
+        }
+
+        logs.errors = errors;
+
+        return {
+          ok: errors.length === 0,
+          count: validations.length,
+          names: validations,
+          errors: errors
+        };
+      }
+
+      function renderResult(result) {
+        processedRows = result.ok ? result.outputRows : [];
+        lastExportName = makeExportName();
+
+        metrics.file.textContent = selectedFile ? selectedFile.name : "-";
+        metrics.read.textContent = formatInteger(result.rowsRead);
+        metrics.valid.textContent = formatInteger(result.validRows);
+        metrics.removed.textContent = formatInteger(result.removedRows);
+        metrics.sales.textContent = formatMoney(result.totals.sales);
+        metrics.cost.textContent = formatMoney(result.totals.cost);
+        metrics.profit.textContent = formatMoney(result.totals.profit);
+        metrics.issues.textContent = formatInteger(result.logs.inconsistencyCount);
+        metrics.duplicates.textContent = formatInteger(result.logs.duplicateCount);
+        metrics.validations.textContent = formatInteger(result.validations.count);
+
+        technicalLog.textContent = buildTechnicalLog(result);
+
+        if (!result.ok) {
+          setMessage("Erro: validação falhou. Download bloqueado.", "error");
+          downloadButton.disabled = true;
+          return;
+        }
+
+        if (result.logs.duplicateCount > 0) {
+          setMessage("Sucesso. Possíveis duplicidades encontradas, mas a exportação foi liberada.", "warning");
+        } else {
+          setMessage("Sucesso. Arquivo tratado pronto para download.", "success");
+        }
+
+        downloadButton.disabled = false;
+      }
+
+      function buildTechnicalLog(result) {
+        var lines = [];
+        lines.push("Versão do app: " + APP_VERSION);
+        lines.push("");
+        lines.push("Aba lida: " + result.logs.sheetName);
+        lines.push("Linha inicial encontrada: " + result.logs.startRow);
+        lines.push("");
+        lines.push("Colunas detectadas:");
+        Object.keys(result.logs.detectedColumns).forEach(function (key) {
+          lines.push("- " + key + ": " + result.logs.detectedColumns[key]);
+        });
+        lines.push("");
+        lines.push("Validações executadas:");
+        result.validations.names.forEach(function (name) {
+          lines.push("- " + name);
+        });
+        lines.push("");
+        lines.push("Erros encontrados:");
+        if (result.validations.errors.length) {
+          result.validations.errors.forEach(function (error) {
+            lines.push("- " + error);
+          });
+        } else {
+          lines.push("- nenhum erro bloqueante");
+        }
+        lines.push("");
+        lines.push("Contagens técnicas:");
+        lines.push("- inconsistências totais: " + result.logs.inconsistencyCount);
+        lines.push("- duplicidades totais: " + result.logs.duplicateCount);
+        lines.push("- linhas descartadas totais: " + result.logs.discardedCount);
+        lines.push("");
+        lines.push("Motivos de descarte:");
+        lines.push(JSON.stringify(result.logs.discardReasons, null, 2));
+        lines.push("");
+        lines.push("Inconsistências registradas:");
+        lines.push(JSON.stringify(result.logs.inconsistencies, null, 2));
+        lines.push("");
+        lines.push("Duplicidades registradas:");
+        lines.push(JSON.stringify(result.logs.duplicates, null, 2));
+        lines.push("");
+        lines.push("Linhas descartadas registradas (amostra limitada):");
+        lines.push(JSON.stringify(result.logs.discardedRows, null, 2));
+
+        return lines.join("\n");
+      }
+
+      function describeMapping(mapping) {
+        var output = {};
+        Object.keys(FIELD_CONFIG).forEach(function (field) {
+          output[FIELD_CONFIG[field].label] = columnName(mapping[field]) + " (" + (mapping._source[field] || "detectado") + ")";
+        });
+        return output;
+      }
+
+      function findHeaderColumn(row, aliases) {
+        for (var col = 0; col < row.length; col += 1) {
+          var value = normalizeHeader(row[col]);
+          for (var i = 0; i < aliases.length; i += 1) {
+            var alias = normalizeHeader(aliases[i]);
+            if (value === alias || value.indexOf(alias) >= 0) {
+              return col;
+            }
+          }
+        }
+
+        return -1;
+      }
+
+      function containsAny(cells, aliases) {
+        return aliases.some(function (alias) {
+          var normalizedAlias = normalizeHeader(alias);
+          return cells.some(function (cell) {
+            return cell === normalizedAlias || cell.indexOf(normalizedAlias) >= 0;
+          });
+        });
+      }
+
+      function isRepeatedHeader(row) {
+        var text = normalizeHeader(row.join(" "));
+        return text.indexOf("produto") >= 0 &&
+          text.indexOf("unidade") >= 0 &&
+          text.indexOf("quantidade") >= 0;
+      }
+
+      function compactRow(row) {
+        return row.filter(function (cell) {
+          return !isBlank(cell);
+        }).slice(0, 8).join(" | ");
+      }
+
+      function shouldLogItem(list) {
+        return list.length < 200;
+      }
+
+      function hasUsableColumn(rows, col) {
+        if (typeof col !== "number" || col < 0) {
+          return false;
+        }
+
+        var hits = 0;
+        for (var i = 0; i < Math.min(rows.length, 120); i += 1) {
+          if (!isBlank((rows[i] || [])[col])) {
+            hits += 1;
+          }
+        }
+
+        return hits > 0;
+      }
+
+      function parseOptionalCode(value) {
+        var text = normalizeText(value);
+        if (!text) {
+          return "";
+        }
+
+        var parsed = parseBrazilianNumber(text);
+        return isFiniteNumber(parsed) && String(text).match(/^[\d.,\s]+$/) ? parsed : text;
+      }
+
+      function parseBrazilianNumber(value) {
+        if (typeof value === "number") {
+          return Number.isFinite(value) ? value : NaN;
+        }
+
+        var text = String(value == null ? "" : value)
+          .replace(/[\u00a0\u200b-\u200d\ufeff]/g, "")
+          .replace(/[^\d,.\-]/g, "")
+          .trim();
+
+        if (!text || text === "-" || text === "." || text === ",") {
+          return NaN;
+        }
+
+        var negative = text.indexOf("-") >= 0;
+        text = text.replace(/-/g, "");
+
+        var lastComma = text.lastIndexOf(",");
+        var lastDot = text.lastIndexOf(".");
+        var decimalSeparator = "";
+
+        if (lastComma >= 0 && lastDot >= 0) {
+          decimalSeparator = lastComma > lastDot ? "," : ".";
+        } else if (lastComma >= 0) {
+          decimalSeparator = inferSingleSeparator(text, ",");
+        } else if (lastDot >= 0) {
+          decimalSeparator = inferSingleSeparator(text, ".");
+        }
+
+        var normalized;
+        if (decimalSeparator) {
+          var parts = text.split(decimalSeparator);
+          var decimalPart = parts.pop();
+          normalized = parts.join("").replace(/[,.]/g, "") + "." + decimalPart;
+        } else {
+          normalized = text.replace(/[,.]/g, "");
+        }
+
+        var number = Number(normalized);
+        if (!Number.isFinite(number)) {
+          return NaN;
+        }
+
+        return negative ? -number : number;
+      }
+
+      function inferSingleSeparator(text, separator) {
+        var pieces = text.split(separator);
+        if (pieces.length <= 1) {
+          return "";
+        }
+
+        var last = pieces[pieces.length - 1];
+        var before = pieces.slice(0, -1).join("");
+
+        if (last.length === 3 && before.length >= 1 && pieces.length > 2) {
+          return "";
+        }
+
+        if (last.length === 3 && before.length > 3) {
+          return "";
+        }
+
+        return separator;
+      }
+
+      function normalizeText(value) {
+        return String(value == null ? "" : value)
+          .replace(/[\u00a0\u200b-\u200d\ufeff]/g, " ")
+          .replace(/[\r\n\t]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function normalizeHeader(value) {
+        return normalizeText(value)
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/r\$/g, "r")
+          .replace(/[^a-z0-9% ]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function isBlank(value) {
+        return normalizeText(value) === "";
+      }
+
+      function isFiniteNumber(value) {
+        return typeof value === "number" && Number.isFinite(value);
+      }
+
+      function compareByCode(a, b) {
+        var codeA = a["Código"];
+        var codeB = b["Código"];
+        var numA = typeof codeA === "number" ? codeA : parseBrazilianNumber(codeA);
+        var numB = typeof codeB === "number" ? codeB : parseBrazilianNumber(codeB);
+
+        if (isFiniteNumber(numA) && isFiniteNumber(numB) && numA !== numB) {
+          return numA - numB;
+        }
+
+        if (isFiniteNumber(numA) && !isFiniteNumber(numB)) return -1;
+        if (!isFiniteNumber(numA) && isFiniteNumber(numB)) return 1;
+
+        return String(codeA).localeCompare(String(codeB), "pt-BR", { numeric: true });
+      }
+
+      function roundNumber(value, decimals) {
+        var factor = Math.pow(10, decimals);
+        return Math.round((value + Number.EPSILON) * factor) / factor;
+      }
+
+      function columnName(index) {
+        var name = "";
+        var number = index + 1;
+
+        while (number > 0) {
+          var remainder = (number - 1) % 26;
+          name = String.fromCharCode(65 + remainder) + name;
+          number = Math.floor((number - 1) / 26);
+        }
+
+        return name || "?";
+      }
+
+      function makeExportName() {
+        var date = new Date();
+        var yyyy = date.getFullYear();
+        var mm = pad(date.getMonth() + 1);
+        var dd = pad(date.getDate());
+        var hh = pad(date.getHours());
+        var mi = pad(date.getMinutes());
+        return "arquivo_tratado_" + yyyy + "-" + mm + "-" + dd + "_" + hh + "-" + mi + ".xlsx";
+      }
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function formatInteger(value) {
+        return Number(value || 0).toLocaleString("pt-BR");
+      }
+
+      function formatMoney(value) {
+        return Number(value || 0).toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL"
+        });
+      }
+
+      function setMessage(text, type) {
+        message.textContent = text;
+        message.className = "message" + (type ? " " + type : "");
+      }
+
+      function resetMetrics() {
+        metrics.file.textContent = "-";
+        metrics.read.textContent = "0";
+        metrics.valid.textContent = "0";
+        metrics.removed.textContent = "0";
+        metrics.sales.textContent = formatMoney(0);
+        metrics.cost.textContent = formatMoney(0);
+        metrics.profit.textContent = formatMoney(0);
+        metrics.issues.textContent = "0";
+        metrics.duplicates.textContent = "0";
+        metrics.validations.textContent = "0";
+        technicalLog.textContent = "Nenhum processamento executado.";
+      }
+    })();
+  </script>
+</body>
+</html>
