@@ -115,6 +115,33 @@
       overflow-wrap: anywhere;
     }
 
+    .name-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .name-field label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .name-field input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 12px;
+      color: var(--text);
+      background: #ffffff;
+      font-size: 16px;
+    }
+
+    .name-field input:focus {
+      border-color: var(--primary);
+      outline: 2px solid rgba(23, 105, 170, 0.16);
+    }
+
     .status-box {
       border-top: 1px solid var(--line);
       padding-top: 18px;
@@ -236,6 +263,11 @@
           <span class="file-name" id="fileName">Nenhum arquivo carregado</span>
         </div>
 
+        <div class="name-field">
+          <label for="outputFileName">Nome do arquivo tratado</label>
+          <input id="outputFileName" type="text" placeholder="arquivo_tratado">
+        </div>
+
         <button id="processButton" type="button" disabled>Processar Arquivo</button>
       </div>
 
@@ -339,6 +371,7 @@
 
       var fileInput = document.getElementById("excelFile");
       var fileName = document.getElementById("fileName");
+      var outputFileName = document.getElementById("outputFileName");
       var processButton = document.getElementById("processButton");
       var downloadButton = document.getElementById("downloadButton");
       var message = document.getElementById("message");
@@ -419,7 +452,7 @@
         var worksheet = XLSX.utils.json_to_sheet(processedRows, { header: REQUIRED_HEADERS });
         var workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "DEMONSTRATIVO_DE_MARGEM");
-        XLSX.writeFile(workbook, lastExportName || makeExportName());
+        XLSX.writeFile(workbook, getExportName());
       });
 
       function readWorkbook(file) {
@@ -1043,7 +1076,7 @@
 
       function renderResult(result) {
         processedRows = result.ok ? result.outputRows : [];
-        lastExportName = makeExportName();
+        lastExportName = getExportName();
 
         metrics.file.textContent = selectedFile ? selectedFile.name : "-";
         metrics.read.textContent = formatInteger(result.rowsRead);
@@ -1327,6 +1360,22 @@
         var hh = pad(date.getHours());
         var mi = pad(date.getMinutes());
         return "arquivo_tratado_" + yyyy + "-" + mm + "-" + dd + "_" + hh + "-" + mi + ".xlsx";
+      }
+
+      function getExportName() {
+        var customName = sanitizeFileName(outputFileName.value);
+        if (!customName) {
+          return makeExportName();
+        }
+
+        return customName.toLowerCase().endsWith(".xlsx") ? customName : customName + ".xlsx";
+      }
+
+      function sanitizeFileName(value) {
+        return normalizeText(value)
+          .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
       }
 
       function pad(value) {
