@@ -271,7 +271,7 @@
     (function () {
       "use strict";
 
-      var APP_VERSION = "2026-05-12-erp-fbf-v3";
+      var APP_VERSION = "2026-05-12-erp-fbf-v4";
 
       var REQUIRED_HEADERS = [
         "Código",
@@ -977,12 +977,27 @@
 
         if (isFiniteNumber(item["Venda R$"]) && item["Venda R$"] !== 0 && isFiniteNumber(item["Lucro R$"]) && isFiniteNumber(item["Margem %"])) {
           var expectedMargin = (item["Lucro R$"] / item["Venda R$"]) * 100;
-          if (Math.abs(expectedMargin - item["Margem %"]) > 0.5) {
+          if (!isMarginAcceptable(expectedMargin, item["Margem %"])) {
             issues.push("margem divergente na linha " + rowNumber + ": esperada " + roundNumber(expectedMargin, 2) + "%");
           }
         }
 
         return issues;
+      }
+
+      function isMarginAcceptable(expectedMargin, reportedMargin) {
+        var difference = Math.abs(expectedMargin - reportedMargin);
+
+        if (difference <= 0.5000001) {
+          return true;
+        }
+
+        // O ERP frequentemente exporta a margem sem casas decimais.
+        if (Number.isInteger(reportedMargin) && Math.round(expectedMargin) === reportedMargin) {
+          return true;
+        }
+
+        return false;
       }
 
       function validateDataset(rows, totalSales, logs) {
